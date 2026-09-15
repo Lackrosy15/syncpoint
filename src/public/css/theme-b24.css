@@ -138,3 +138,16 @@ h1 { font-size: 22px; margin: 0 0 20px; }
 .booking-blocked { color: #a32626; background: #fff0f0; border-color: #ffc7c7; }
 .booking-conflict-link { display: block; color: #007da8; margin-top: 6px; }
 @media (max-width: 600px) { .booking-columns { grid-template-columns: 1fr; gap: 0; } .records-month { left: auto; right: 0; } }
+
+.records-event { white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+.records-event > * { flex-shrink: 0; }
+.records-person { font-size: 12px; }
+.records-place { color: #527083; }
+
+.content { min-width: 0; }
+.records-axis { position: sticky; left: 0; z-index: 4; background: white; }
+
+.records-event-arrived { background: #dcfce7; border-color: #86d8a5; border-left-color: #229653; color: #155c33; }
+.records-event-arrived:hover { background: #bbf7d0; }
+.records-event-no_show { background: #eef0f3; border-color: #c8cdd3; border-left-color: #87909c; color: #626c78; }
+.records-event-no_show:hover { background: #e0e4e9; }

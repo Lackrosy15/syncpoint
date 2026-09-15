@@ -38,12 +38,12 @@ test('пустое пространство удаляется', async () => {
 });
 
 test('нельзя удалить инструмент с экземплярами', async () => {
-  const { tool } = await toolsService.createWithDistribution({ name: 'Фен', distribution: [{ spaceId: null, count: 1 }] });
+  const { tool } = await toolsService.createWithDistribution({ name: 'Фен', distribution: [{ spaceId: (await spacesService.create({ name: 'A' })).id, count: 1 }] });
   await assert.rejects(() => toolsService.remove(tool.id), (e) => e.status === 409);
 });
 
 test('нельзя удалить инструмент, указанный в услуге', async () => {
-  const { tool } = await toolsService.createWithDistribution({ name: 'Фен', distribution: [] });
+  const { tool } = await toolsService.createWithDistribution({ name: 'Фен', distribution: [{ spaceId: (await spacesService.create({ name: 'A' })).id, count: 0 }] });
   await servicesService.create({ name: 'Сушка', isComposite: false, priceType: 'fixed', price: 10, requiredToolIds: [tool.id] });
   await assert.rejects(() => toolsService.remove(tool.id), (e) => e.status === 409);
 });

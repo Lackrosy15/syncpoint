@@ -1,3 +1,4 @@
+import { toolsRepo } from '../repositories/toolsRepo.js';
 import { spacesRepo } from '../repositories/spacesRepo.js';
 import { bookingsRepo } from '../repositories/bookingsRepo.js';
 import { workPointsRepo } from '../repositories/workPointsRepo.js';
@@ -34,6 +35,7 @@ export const spacesService = {
     if (insts.some((i) => i.spaceId === id)) {
       throw new ConflictError('Нельзя удалить: в пространстве есть экземпляры инструментов');
     }
+    if ((await toolsRepo.list()).some((t) => (t.spaceIds || []).includes(id))) throw new ConflictError('Нельзя удалить: к пространству привязан инструмент');
     const ok = await spacesRepo.remove(id);
     if (!ok) throw new NotFoundError('Пространство не найдено');
     return { id };

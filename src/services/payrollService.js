@@ -55,6 +55,7 @@ export const payrollService = {
     const empById = new Map(employees.map((e) => [e.id, e]));
 
     const inRange = bookings.filter((b) => {
+      if (['cancelled', 'no_show'].includes(b.status)) return false;
       const s = Date.parse(b.start);
       if (Number.isFinite(fromMs) && Date.parse(b.end) <= fromMs) return false;
       if (Number.isFinite(toMs) && s >= toMs) return false;

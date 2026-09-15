@@ -17,7 +17,7 @@ async function render(mount, api) {
     ]);
   } catch (e) { mount.append(el('div', { class: 'banner' }, e.message)); }
 
-  const spaceName = (id) => (id == null ? 'Без пространства' : (spaces.find((s) => s.id === id)?.name || '—'));
+  const spaceName = (id) => (id == null ? 'Требуется назначить пространство' : (spaces.find((s) => s.id === id)?.name || '—'));
 
   if (!tools.length) mount.append(el('div', { class: 'muted' }, 'Пока пусто.'));
   for (const tool of tools) {
@@ -31,15 +31,16 @@ async function render(mount, api) {
       groups.get(key).items.push(inst);
     }
 
+    for (const id of tool.spaceIds || []) if (!groups.has(id)) groups.set(id, { spaceId: id, items: [] });
     const groupRows = [...groups.values()].map((g) => {
       const named = g.items.filter((i) => i.label);
       return el('div', { class: 'meta', style: 'display:flex;align-items:center;gap:8px;padding:2px 0' }, [
         el('span', { style: 'flex:1' }, `${spaceName(g.spaceId)} — ${g.items.length}`),
         el('button', { class: 'btn link', onclick: () => editGroup(tool, g, spaces, mount, api) }, '✎ кол-во'),
-        ...named.map((i) => el('button', {
+        ...g.items.filter((i) => i.label || !g.spaceId).map((i) => el('button', {
           class: 'btn link', title: `Переименовать «${i.label}»`,
           onclick: () => editInstance(i, spaces, mount, api),
-        }, `${i.label} ✎`)),
+        }, `${i.label || 'Назначить пространство'} ✎`)),
       ]);
     });
 
@@ -90,7 +91,7 @@ function editGroup(tool, group, spaces, mount, api) {
 function editInstance(inst, spaces, mount, api) {
   const label = textField('Название экземпляра', inst.label || '');
   const sel = el('select', {});
-  sel.append(el('option', { value: '' }, 'Без пространства'));
+  sel.append(el('option', { value: '' }, 'Выберите пространство'));
   for (const s of spaces) {
     const opt = el('option', { value: s.id }, s.name);
     if (inst.spaceId === s.id) opt.selected = true;
@@ -124,15 +125,19 @@ function openEdit(tool, instances, spaces, mount, api) {
     groups.get(key).push(instance);
   }
   // Include every space so quantities can also be assigned to a new space.
-  const destinations = [{ id: null, name: 'Без пространства' }, ...spaces];
+  const destinations = [...spaces];
   for (const key of groups.keys()) {
     if (!destinations.some((s) => s.id === key)) destinations.push({ id: key, name: 'Неизвестное пространство' });
   }
   for (const space of destinations) {
     const items = [...(groups.get(space.id) || [])];
     const count = el('input', { type: 'number', min: '0', step: '1', value: String(items.length), style: 'width:90px' });
-    rows.push({ spaceId: space.id, items, count });
-    rowsWrap.append(el('div', { class: 'field' }, [el('label', {}, space.name), count]));
+    const assigned = el('input', { type: 'checkbox' });
+    assigned.checked = Boolean(space.id && ((tool.spaceIds || []).includes(space.id) || items.length));
+    assigned.disabled = !space.id || items.length > 0;
+    count.oninput = () => { if (space.id && Number(count.value) > 0) assigned.checked = true; };
+    rows.push({ spaceId: space.id, items, count, assigned });
+    rowsWrap.append(el('div', { class: 'field' }, [el('label', {}, [assigned, ' ', space.name]), count]));
   }
   openModal({
     title: 'Изменить инструмент',
@@ -153,7 +158,9 @@ function openEdit(tool, instances, spaces, mount, api) {
       name.input.disabled = true;
       rows.forEach((row) => { row.count.disabled = true; });
       try {
-        await api.update('tools', tool.id, { name: nextName });
+        const spaceIds = targets.filter(({ row, target }) => row.spaceId && (row.assigned.checked || target > 0 || row.items.length)).map(({ row }) => row.spaceId);
+        if (!spaceIds.length) throw new Error('Выберите хотя бы одно пространство инструмента');
+        await api.update('tools', tool.id, { name: nextName, spaceIds });
         for (const { row, target } of targets) {
           // Keep successful changes in the local list so a retry does not duplicate them.
           row.items.sort((a, b) => (a.label ? 1 : 0) - (b.label ? 1 : 0));
@@ -186,7 +193,7 @@ function openCreate(mount, api) {
 
   const addRow = () => {
     const sel = el('select', {});
-    sel.append(el('option', { value: '' }, 'Без пространства'));
+    sel.append(el('option', { value: '' }, 'Выберите пространство'));
     for (const s of spacesCache) sel.append(el('option', { value: s.id }, s.name));
     const count = el('input', { type: 'number', min: '0', value: '1', style: 'width:80px' });
     rowsWrap.append(el('div', { class: 'field', style: 'display:flex;gap:8px;align-items:flex-end' }, [
@@ -207,7 +214,8 @@ function openCreate(mount, api) {
       el('button', { class: 'btn secondary', onclick: addRow }, '+ строка'),
     ]),
     onSubmit: async () => {
-      const distribution = [...rowsWrap.children].map((r) => r._get()).filter((d) => d.count > 0);
+      const distribution = [...rowsWrap.children].map((r) => r._get());
+      if (!distribution.length || distribution.some((d) => !d.spaceId)) throw new Error('Выберите пространство в каждой строке');
       await api.create('tools', { name: name.input.value, distribution });
       await render(mount, api);
     },
@@ -218,7 +226,7 @@ function openCreate(mount, api) {
 function addInstance(tool, spaces, mount, api) {
   const label = textField('Название экземпляра (необязательно)');
   const sel = el('select', {});
-  sel.append(el('option', { value: '' }, 'Без пространства'));
+  sel.append(el('option', { value: '' }, 'Выберите пространство'));
   for (const s of spaces) sel.append(el('option', { value: s.id }, s.name));
   openModal({
     title: `Экземпляр: ${tool.name}`,

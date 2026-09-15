@@ -1,3 +1,4 @@
+import { spacesRepo } from '../src/repositories/spacesRepo.js';
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
@@ -15,7 +16,9 @@ beforeEach(async () => {
   servicesRepo._store._reset();
   toolsRepo._store._reset();
   toolInstancesRepo._store._reset();
-  tool = (await toolsService.createWithDistribution({ name: 'Фен', distribution: [] })).tool;
+  spacesRepo._store._reset();
+  const space = await spacesRepo.create({ name: 'A' });
+  tool = (await toolsService.createWithDistribution({ name: 'Фен', distribution: [{ spaceId: space.id, count: 0 }] })).tool;
 });
 
 test('tool quantities survive create and update, and unchecked tools are removed', async () => {

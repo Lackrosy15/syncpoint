@@ -13,7 +13,7 @@ function cleanName(name) {
 }
 
 async function requireSpaceOrNull(spaceId) {
-  if (spaceId === null || spaceId === undefined) return null;
+  if (!spaceId) throw new ValidationError('Выберите пространство');
   if (!(await spacesRepo.get(spaceId))) throw new ValidationError('Пространство не найдено');
   return spaceId;
 }
@@ -31,17 +31,18 @@ export const toolsService = {
     if (!t) throw new NotFoundError('Инструмент не найден');
     return t;
   },
-  create: ({ name }) => toolsRepo.create({ name: cleanName(name) }),
+  async create({ name, spaceId }) { const id = await requireSpaceOrNull(spaceId); return toolsRepo.create({ name: cleanName(name), spaceIds: [id] }); },
   async createWithDistribution({ name, distribution = [] }) {
     const n = cleanName(name);
+    if (!Array.isArray(distribution) || !distribution.length) throw new ValidationError('Выберите пространство инструмента');
     const normalized = [];
     for (const row of distribution) {
       const spaceId = await requireSpaceOrNull(row.spaceId ?? null);
-      const count = Number(row.count) || 0;
-      if (count < 0) throw new ValidationError('Количество не может быть отрицательным');
+      const count = Number(row.count);
+      if (!Number.isSafeInteger(count) || count < 0) throw new ValidationError('Количество должно быть целым числом от 0');
       normalized.push({ spaceId, count });
     }
-    const tool = await toolsRepo.create({ name: n });
+    const tool = await toolsRepo.create({ name: n, spaceIds: [...new Set(normalized.map((r) => r.spaceId))] });
     const instances = [];
     for (const { spaceId, count } of normalized) {
       for (let i = 0; i < count; i++) {
@@ -50,8 +51,14 @@ export const toolsService = {
     }
     return { tool, instances };
   },
-  async update(id, { name }) {
-    const t = await toolsRepo.update(id, { name: cleanName(name) });
+  async update(id, { name, spaceIds }) {
+    const existing = await requireTool(id);
+    const instances = (await toolInstancesRepo.list()).filter((i) => i.toolId === id);
+    const ids = [...new Set(spaceIds ?? [...(existing.spaceIds || []), ...instances.map((i) => i.spaceId).filter(Boolean)])];
+    if (!ids.length) throw new ValidationError('Выберите пространство инструмента');
+    for (const sid of ids) await requireSpaceOrNull(sid);
+    if (instances.some((i) => i.spaceId && !ids.includes(i.spaceId))) throw new ConflictError('Сначала переместите или удалите экземпляры этого пространства');
+    const t = await toolsRepo.update(id, { name: cleanName(name), spaceIds: ids });
     if (!t) throw new NotFoundError('Инструмент не найден');
     return t;
   },
@@ -71,12 +78,18 @@ export const toolsService = {
 
   listInstances: () => toolInstancesRepo.list(),
   async addInstance({ toolId, spaceId = null, label = null }) {
-    await requireTool(toolId);
+    const tool = await requireTool(toolId);
     const s = await requireSpaceOrNull(spaceId);
+    await toolsRepo.update(toolId, { spaceIds: [...new Set([...(tool.spaceIds || []), s])] });
     return toolInstancesRepo.create({ toolId, spaceId: s, label });
   },
   async updateInstance(id, { spaceId, label }) {
     const s = await requireSpaceOrNull(spaceId ?? null);
+    const old = await toolInstancesRepo.get(id);
+    if (!old) throw new NotFoundError('Экземпляр не найден');
+    if (old.spaceId !== s && (await bookingsRepo.list()).some((b) => !['cancelled', 'no_show'].includes(b.status) && Date.parse(b.end) > Date.now() && (b.toolInstanceIds || []).includes(id))) throw new ConflictError('Экземпляр забронирован: сначала перенесите запись');
+    const tool = await requireTool(old.toolId);
+    await toolsRepo.update(tool.id, { spaceIds: [...new Set([...(tool.spaceIds || []), s])] });
     const inst = await toolInstancesRepo.update(id, { spaceId: s, label: label ?? null });
     if (!inst) throw new NotFoundError('Экземпляр не найден');
     return inst;

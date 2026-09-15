@@ -34,13 +34,10 @@ test('createWithDistribution создаёт инструмент и экземп
   instances.forEach((i) => assert.equal(i.toolId, tool.id));
 });
 
-test('строка распределения без пространства даёт общие экземпляры (spaceId=null)', async () => {
-  const { instances } = await toolsService.createWithDistribution({
-    name: 'Пылесос',
-    distribution: [{ spaceId: null, count: 1 }],
-  });
-  assert.equal(instances.length, 1);
-  assert.equal(instances[0].spaceId, null);
+test('unassigned tools and instances are rejected before creation', async () => {
+  await assert.rejects(toolsService.createWithDistribution({ name: 'Пылесос', distribution: [{ spaceId: null, count: 1 }] }), /пространство/i);
+  await assert.rejects(toolsService.createWithDistribution({ name: 'Пылесос', distribution: [] }), /пространство/i);
+  assert.equal((await toolsRepo.list()).length, 0);
 });
 
 test('распределение со ссылкой на несуществующее пространство — ValidationError', async () => {
@@ -58,7 +55,7 @@ test('createWithDistribution без имени — ValidationError', async () =>
 });
 
 test('addInstance добавляет один экземпляр существующему инструменту', async () => {
-  const { tool } = await toolsService.createWithDistribution({ name: 'Фен', distribution: [] });
+  const { tool } = await toolsService.createWithDistribution({ name: 'Фен', distribution: [{ spaceId: spaceA.id, count: 0 }] });
   const inst = await toolsService.addInstance({ toolId: tool.id, spaceId: spaceA.id });
   assert.equal(inst.toolId, tool.id);
   assert.equal(inst.spaceId, spaceA.id);
@@ -69,4 +66,14 @@ test('addInstance для несуществующего инструмента �
     () => toolsService.addInstance({ toolId: 'нет', spaceId: null }),
     /Инструмент не найден/,
   );
+});
+
+test('tool retains space with zero instances; null and fractional quantities rejected', async () => {
+  const { tool } = await toolsService.createWithDistribution({ name: 'Фен', distribution: [{ spaceId: spaceA.id, count: 0 }] });
+  assert.deepEqual(tool.spaceIds, [spaceA.id]);
+  await assert.rejects(toolsService.addInstance({ toolId: tool.id }), /пространство/i);
+  await assert.rejects(toolsService.createWithDistribution({ name: 'Фен', distribution: [{ spaceId: spaceA.id, count: 1.5 }] }), /целым/);
+  const inst = await toolsService.addInstance({ toolId: tool.id, spaceId: spaceB.id });
+  assert.ok((await toolsService.get(tool.id)).spaceIds.includes(spaceB.id));
+  await assert.rejects(toolsService.updateInstance(inst.id, { spaceId: null }), /пространство/i);
 });
