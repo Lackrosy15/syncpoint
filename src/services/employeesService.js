@@ -49,37 +49,35 @@ export const employeesService = {
     if (!e) throw new NotFoundError('Сотрудник не найден');
     return e;
   },
-  async updateSalary(id, { mode, flatPercent, servicePercents }) {
-    const e = await employeesRepo.get(id);
-    if (!e) throw new NotFoundError('Сотрудник не найден');
-
+  async updateSalary(id, { mode, flatPercent, defaultServicePercent, teamPercents, servicePercents }) {
+    if (!(await employeesRepo.get(id))) throw new NotFoundError('Сотрудник не найден');
+    const percent = (value) => {
+      if (value === '' || value == null || typeof value === 'boolean') throw new ValidationError('Укажите процент от 0 до 100');
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 0 || n > 100) throw new ValidationError('Процент должен быть от 0 до 100');
+      return n;
+    };
+    const team = (values = {}) => {
+      if (!values || typeof values !== 'object' || Array.isArray(values)) throw new ValidationError('Некорректные проценты команды');
+      const result = {};
+      for (const [count, value] of Object.entries(values)) {
+        if (!['2','3','4','5'].includes(count)) throw new ValidationError('Размер команды должен быть от 2 до 5');
+        if (value != null && value !== '') result[count] = percent(value);
+      }
+      return result;
+    };
     let salary;
-    if (mode === 'flat') {
-      const p = Number(flatPercent);
-      if (!Number.isFinite(p) || p < 0 || p > 100) {
-        throw new ValidationError('Процент должен быть от 0 до 100');
+    if (mode === 'flat') salary = { mode, flatPercent: percent(flatPercent), teamPercents: team(teamPercents), servicePercents: [] };
+    else if (mode === 'perService') {
+      if (servicePercents != null && !Array.isArray(servicePercents)) throw new ValidationError('Некорректный список услуг');
+      const rules = [], seen = new Set();
+      for (const r of servicePercents || []) {
+        if (!r.serviceId || seen.has(r.serviceId) || !(await servicesRepo.get(r.serviceId))) throw new ValidationError('Услуга отсутствует или повторяется');
+        seen.add(r.serviceId); rules.push({ serviceId: r.serviceId, percent: percent(r.percent), teamPercents: team(r.teamPercents) });
       }
-      salary = { mode: 'flat', flatPercent: p, servicePercents: [] };
-    } else if (mode === 'perService') {
-      const list = Array.isArray(servicePercents) ? servicePercents : [];
-      const cleaned = [];
-      for (const row of list) {
-        const p = Number(row.percent);
-        if (!row.serviceId || !Number.isFinite(p) || p < 0 || p > 100) {
-          throw new ValidationError('Некорректный процент по услуге (0–100)');
-        }
-        if (!(await servicesRepo.get(row.serviceId))) {
-          throw new ValidationError('Услуга не найдена');
-        }
-        cleaned.push({ serviceId: row.serviceId, percent: p });
-      }
-      salary = { mode: 'perService', flatPercent: null, servicePercents: cleaned };
-    } else if (mode === null || mode === undefined || mode === '') {
-      salary = emptySalary();
-    } else {
-      throw new ValidationError('Неизвестный режим ЗП');
-    }
-
+      salary = { mode, defaultServicePercent: percent(defaultServicePercent ?? 0), teamPercents: team(teamPercents), servicePercents: rules };
+    } else if (!mode) salary = emptySalary();
+    else throw new ValidationError('Неизвестный режим ЗП');
     return employeesRepo.update(id, { salary });
   },
   async remove(id) {

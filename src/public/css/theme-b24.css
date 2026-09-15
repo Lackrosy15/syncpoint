@@ -151,3 +151,17 @@ h1 { font-size: 22px; margin: 0 0 20px; }
 .records-event-arrived:hover { background: #bbf7d0; }
 .records-event-no_show { background: #eef0f3; border-color: #c8cdd3; border-left-color: #87909c; color: #626c78; }
 .records-event-no_show:hover { background: #e0e4e9; }
+.modal:has(.salary-form) { width: 760px; }
+.salary-team { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.salary-rule { border: 1px solid var(--b24-border); border-radius: 8px; padding: 12px; margin: 8px 0; }
+.payroll-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.payroll-toolbar input[type=date], .payroll-toolbar select { padding: 8px; border: 1px solid var(--b24-border); border-radius: 6px; }
+.salary-card { background: white; padding: 16px; border: 1px solid var(--b24-border); border-radius: 10px; margin: 12px 0; }
+.salary-card-header { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.salary-card-header > b { flex: 1; }
+.salary-details { margin-top: 12px; }
+.salary-details summary { cursor: pointer; }
+.salary-table-scroll { overflow: auto; }
+.salary-table { border-collapse: collapse; width: 100%; margin-top: 12px; font-size: 13px; }
+.salary-table th, .salary-table td { padding: 10px; border-bottom: 1px solid var(--b24-border); text-align: left; }
+@media(max-width:600px) { .salary-team { grid-template-columns: repeat(2,minmax(0,1fr)); } }

@@ -1,3 +1,4 @@
+import { payrollView } from './views/payroll.js';
 import { el } from './ui.js';
 import { api } from './api.js';
 import { spacesView } from './views/spaces.js';
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'work-points', label: 'Рабочие точки', view: workPointsView },
   { id: 'tools', label: 'Инструменты', view: toolsView },
   { id: 'services', label: 'Услуги', view: servicesView },
+  { id: 'payroll', label: 'Зарплата', view: payrollView },
   { id: 'employees', label: 'Сотрудники', view: employeesView },
 ];
 

@@ -1,3 +1,4 @@
+import { serviceAmounts } from './payrollRules.js';
 import { bookingsRepo } from '../repositories/bookingsRepo.js';
 import { workPointsRepo } from '../repositories/workPointsRepo.js';
 import { spacesRepo } from '../repositories/spacesRepo.js';
@@ -118,7 +119,8 @@ async function save(body, id) {
   if (result.employeeConflicts.length) throw new ConflictError('Сотрудник уже занят в это время. Выберите другого исполнителя или время.');
   if (result.conflicts.length) throw new ConflictError('Выбранное время занято: измените время, пространство или рабочую точку');
   const { expanded, ...data } = v;
-  const record = { ...data, toolInstanceIds: result.toolInstanceIds, warnings: [] };
+  const amounts = serviceAmounts(data, await servicesRepo.list());
+  const record = { ...data, serviceAmounts: amounts, toolInstanceIds: result.toolInstanceIds, warnings: [] };
   const booking = id ? await bookingsRepo.update(id, record) : await bookingsRepo.create(record);
   return { booking, warnings: [], requirements: result.requirements, priceEstimated: false };
 }
