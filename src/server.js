@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { verifyBitrix, resolveAccess, allowed, accessStore, updateAccess } from './services/accessService.js';
 import { employeesRepo } from './repositories/employeesRepo.js';
 import 'dotenv/config';
@@ -60,8 +61,14 @@ app.use('/api/b24', b24Router);
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/payroll', payrollRouter);
 
-app.post('/', (req, res) => {
-  res.sendFile(join(__dirname, 'public', 'index.html'));
+app.post('/', async (req, res, next) => {
+  try {
+    const token = req.body?.AUTH_ID || req.body?.auth?.access_token;
+    const launch = JSON.stringify({ access_token: typeof token === 'string' ? token : '' }).replaceAll('<', '\\u003c');
+    const html = await readFile(join(__dirname, 'public', 'index.html'), 'utf8');
+    res.set('Cache-Control', 'no-store');
+    res.send(html.replace('<!-- LAUNCH_AUTH -->', () => '<script type="application/json" id="launch-auth">' + launch + '</script>'));
+  } catch (e) { next(e); }
 });
 
 app.use((err, req, res, next) => {

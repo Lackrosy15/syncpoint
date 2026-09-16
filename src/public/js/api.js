@@ -1,6 +1,8 @@
+import { getToken } from './bitrixAuth.js';
 async function request(path, options = {}) {
   const res = await fetch(`api/${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(window.BX24?.getAuth()?.access_token ? { 'X-B24-Token': window.BX24.getAuth().access_token } : {}) },
+    headers: { 'Content-Type': 'application/json', ...(getToken() ? { 'X-B24-Token': getToken() } : {}) },
+    signal: AbortSignal.timeout(25000),
     ...options,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });

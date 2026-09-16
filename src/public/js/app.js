@@ -1,3 +1,4 @@
+import { initializeBitrix } from './bitrixAuth.js';
 import { access, setAccess } from './access.js';
 import { rolesView } from './views/roles.js';
 import { payrollView } from './views/payroll.js';
@@ -36,7 +37,7 @@ function activate(tab) {
 
 async function start() {
 try {
-  if (window.BX24 && window.self !== window.top) await new Promise((resolve) => window.BX24.init(resolve));
+  await initializeBitrix();
   setAccess(await api.get('auth/me'));
 for (const tab of TABS.filter((t) => access.isAdmin || !['services','roles'].includes(t.id))) {
   tabsNav.append(el('button', { 'data-id': tab.id, onclick: () => activate(tab) }, tab.label));
@@ -46,6 +47,6 @@ window.addEventListener('hashchange', () => {
   if (location.hash.startsWith('#bookings')) activate(TABS[0]);
 });
 
-} catch(e) { viewMount.textContent = e.message; }
+} catch(e) { titleEl.textContent = 'Не удалось открыть приложение'; viewMount.textContent = e.message; }
 }
 start();

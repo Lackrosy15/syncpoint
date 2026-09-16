@@ -51,3 +51,14 @@ test('ошибка валидации → 400 и {ok:false}', async () => {
   assert.equal(body.ok, false);
   assert.equal(body.error.code, 'VALIDATION');
 });
+
+test('POST launch embeds token safely without caching or blocking external script', async () => {
+  const token = '</script><script>alert(1)</script>';
+  const r=await fetch(base.replace('/api','')+'/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({AUTH_ID:token})});
+  const html=await r.text();
+  assert.equal(r.headers.get('cache-control'),'no-store');
+  assert.ok(!html.includes(token));
+  const encoded=html.match(/id="launch-auth">(.*?)<\/script>/)[1];
+  assert.equal(JSON.parse(encoded).access_token,token);
+  assert.ok(!html.includes('<script src="https://api.bitrix24.com'));
+});
