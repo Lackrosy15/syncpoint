@@ -56,10 +56,19 @@ try {
         $form.Add($archiveContent, 'archive', 'app.tar.gz')
         $baseUrl = $settings['VIBE_BASE_URL']
         if (-not $baseUrl) { $baseUrl = 'https://vibecode.bitrix24.tech/v1' }
+        $serverId = [Uri]::EscapeDataString($settings['SERVER_ID'])
+        $modeResponse = $client.GetAsync("https://vibecode.bitrix24.tech/v1/infra/servers/$serverId/ssh").GetAwaiter().GetResult()
+        try {
+            if (-not $modeResponse.IsSuccessStatusCode) { throw 'Cannot verify server isolation before configuring authentication.' }
+            $serverInfo = $modeResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
+            if ($serverInfo.success -ne $true -or $serverInfo.data.mode -notin @('BLACKHOLE', 'OPEN')) { throw 'Unknown server access mode.' }
+            $trustGateway = if ($serverInfo.data.mode -eq 'BLACKHOLE') { 'true' } else { 'false' }
+        } finally { $modeResponse.Dispose() }
         $envJson = @{
             NODE_ENV = 'production'; PORT = '3000'
             VIBE_API_KEY = $settings['VIBE_API_KEY']; VIBE_BASE_URL = $baseUrl
             DATA_DIR = '/opt/data/syncpoint'; B24_DOMAIN = $settings['B24_DOMAIN']
+            VIBE_TRUST_GATEWAY = $trustGateway
         } | ConvertTo-Json -Compress
         $fields = @{
             runtime = 'node20'; install = 'cd /opt/app && npm ci --omit=dev'

@@ -36,6 +36,15 @@ tar czf /tmp/vibe-deploy.tar.gz \
 echo "Деплоим на Vibecode (SERVER_ID: $SERVER_ID)..."
 ENV_JSON=$(python3 -c "
 import json, os, sys
+import urllib.request
+request = urllib.request.Request(
+  'https://vibecode.bitrix24.tech/v1/infra/servers/' + os.environ['SERVER_ID'] + '/ssh',
+  headers={'X-Api-Key': os.environ['VIBE_API_KEY']})
+with urllib.request.urlopen(request, timeout=30) as response:
+  server = json.load(response)
+mode = server.get('data', {}).get('mode')
+if server.get('success') is not True or mode not in ('BLACKHOLE', 'OPEN'):
+  sys.exit('Cannot verify server isolation before configuring authentication')
 print(json.dumps({
   'NODE_ENV': 'production',
   'PORT': '3000',
@@ -43,6 +52,7 @@ print(json.dumps({
   'VIBE_BASE_URL': os.environ.get('VIBE_BASE_URL', 'https://vibecode.bitrix24.tech/v1'),
   'B24_DOMAIN': os.environ['B24_DOMAIN'],
   'DATA_DIR': '/opt/data/syncpoint',
+  'VIBE_TRUST_GATEWAY': 'true' if mode == 'BLACKHOLE' else 'false',
 }))
 ")
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_URL" \

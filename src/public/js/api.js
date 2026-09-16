@@ -10,7 +10,7 @@ async function request(path, options = {}) {
   try { payload = await res.json(); } catch { /* empty response */ }
   if (!res.ok || payload.ok === false) {
     const msg = payload?.error?.message || `Ошибка ${res.status}`;
-    throw new Error(msg);
+    throw Object.assign(new Error(msg), {status:res.status});
   }
   return payload.data;
 }

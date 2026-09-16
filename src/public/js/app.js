@@ -1,4 +1,4 @@
-import { initializeBitrix } from './bitrixAuth.js';
+import { authenticate } from './bitrixAuth.js';
 import { access, setAccess } from './access.js';
 import { rolesView } from './views/roles.js';
 import { payrollView } from './views/payroll.js';
@@ -37,8 +37,7 @@ function activate(tab) {
 
 async function start() {
 try {
-  await initializeBitrix();
-  setAccess(await api.get('auth/me'));
+  setAccess(await authenticate(() => api.get('auth/me')));
 for (const tab of TABS.filter((t) => access.isAdmin || !['services','roles'].includes(t.id))) {
   tabsNav.append(el('button', { 'data-id': tab.id, onclick: () => activate(tab) }, tab.label));
 }
