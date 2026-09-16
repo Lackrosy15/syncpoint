@@ -1,3 +1,4 @@
+import { access } from '../access.js';
 import { openSalaryForm } from './salaryForm.js';
 import { el, textField, openModal } from '../ui.js';
 
@@ -7,7 +8,7 @@ export function employeesView(mount, api) {
 
 async function render(mount, api) {
   mount.innerHTML = '';
-  mount.append(el('div', { class: 'toolbar' }, [
+  if (access.isAdmin) mount.append(el('div', { class: 'toolbar' }, [
     el('button', { class: 'btn', onclick: () => importFromB24(mount, api) }, 'Загрузить из Битрикс24'),
     el('button', { class: 'btn secondary', onclick: () => addManual(mount, api) }, 'Добавить вручную'),
   ]));
@@ -20,7 +21,7 @@ async function render(mount, api) {
   for (const e of employees) {
     mount.append(el('div', { class: 'row' }, [
       el('div', {}, [el('b', {}, e.name), ' ', el('span', { class: 'badge' }, e.source === 'b24' ? 'Б24' : 'вручную')]),
-      el('div', {}, [el('button', { class: 'btn secondary', onclick: () => openSalaryForm(e, api, () => render(mount, api)) }, 'Настройки зарплаты'), el('button', { class: 'btn link', onclick: () => del(e, mount, api) }, 'Удалить')]),
+      access.isAdmin ? el('div', {}, [el('button', { class: 'btn secondary', onclick: () => openSalaryForm(e, api, () => render(mount, api)) }, 'Настройки зарплаты'), el('button', { class: 'btn link', onclick: () => del(e, mount, api) }, 'Удалить')]) : null,
     ]));
   }
 }

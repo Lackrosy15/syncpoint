@@ -12,7 +12,7 @@ export const payrollService = {
     const byId = new Map(employees.map((e) => [e.id, e]));
     const rows = new Map();
     for (const b of bookings) {
-      if (!(b.status === 'arrived' || (includeWaiting === 'true' && (!b.status || b.status === 'waiting')))) continue;
+      if (['cancelled', 'no_show'].includes(b.status)) continue;
       if (Date.parse(b.start) < a || Date.parse(b.start) >= z) continue;
       const people = [...new Set(b.employeeIds || [])];
       const amounts = serviceAmounts(b, services);

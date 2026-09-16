@@ -34,7 +34,6 @@ export function calendarView(mount, api) {
       const last = new Date(end); last.setDate(last.getDate() - 1);
       const header = el('div', { class: 'records-toolbar' }, [
         el('button', { class: 'btn', onclick: () => open() }, 'Создать запись'),
-        el('button', { class: 'btn secondary', onclick: () => { state.week = weekOf(new Date()); refresh(); } }, 'Сегодня'),
         el('button', { class: 'btn secondary', 'aria-label': 'Предыдущая неделя', onclick: () => shift(-7) }, '‹'),
         el('b', {}, `${state.week.toLocaleDateString('ru-RU')} — ${last.toLocaleDateString('ru-RU')}`),
         el('button', { class: 'btn secondary', 'aria-label': 'Следующая неделя', onclick: () => shift(7) }, '›'), picker, spaceSelect, pointSelect, employeeSelect,
@@ -78,9 +77,9 @@ export function calendarView(mount, api) {
             const names = (b.serviceIds || []).map((id) => services.find((s) => s.id === id)?.name || 'Услуга').join(', ');
             const place = points.find((p) => p.id === b.workPointId)?.name || spaces.find((s) => s.id === b.spaceId)?.name || 'Без точки';
             const staff = (b.employeeIds || []).map((id) => employees.find((e) => e.id === id)?.name || 'Сотрудник недоступен').join(', ') || 'Не назначены';
-            const card = el('button', { class: `records-event records-event-${b.status || 'waiting'}`, title: `${names}\n${place}\n${b.client?.name || 'Без клиента'}`, style: `top:${top}px;height:${Math.max(22, bottom - top)}px;left:${lane * 100 / lanes.length}%;width:${100 / lanes.length}%`, onclick: () => open({ booking: b }) }, [
-              el('b', {}, `${time(b.start)}–${time(b.end)}`), el('span', {}, names), el('span', { class: 'records-person' }, `Клиент: ${b.client?.name || 'Не указан'}`),
-              el('span', { class: 'records-person' }, `Исполнители: ${staff}`), el('span', { class: 'records-place' }, place),
+            const card = el('button', { class: `records-event records-event-${b.status || 'waiting'}`, title: `${names}\n${place}\n${b.client?.name || 'Без клиента'}${b.note ? '\nЗаметка: ' + b.note : ''}`, style: `top:${top}px;height:${Math.max(22, bottom - top)}px;left:${lane * 100 / lanes.length}%;width:${100 / lanes.length}%`, onclick: () => open({ booking: b }) }, [
+              el('b', {}, `${time(b.start)}–${time(b.end)}`), el('span', {}, names), el('span', { class: 'records-person' }, [el('strong', {}, 'Клиент: '), b.client?.name || 'Не указан']),
+              el('span', { class: 'records-person' }, [el('strong', {}, 'Исполнители: '), staff]), el('span', { class: 'records-place' }, place),
               el('span', {}, ({ waiting: 'Ожидание', arrived: 'Пришёл', no_show: 'Не пришёл' })[b.status || 'waiting']),
             ]);
             col.append(card); eventLayouts.push({ card, top, bottom });

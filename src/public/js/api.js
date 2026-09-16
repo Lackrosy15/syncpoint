@@ -1,6 +1,6 @@
 async function request(path, options = {}) {
   const res = await fetch(`api/${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(window.BX24?.getAuth()?.access_token ? { 'X-B24-Token': window.BX24.getAuth().access_token } : {}) },
     ...options,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });

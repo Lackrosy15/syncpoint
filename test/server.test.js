@@ -1,3 +1,4 @@
+import { accessStore } from '../src/services/accessService.js';
 import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
@@ -14,7 +15,8 @@ before(async () => {
 after(() => server.close());
 beforeEach(() => {
   process.env.DATA_DIR = mkdtempSync(join(tmpdir(), 'sp-srv-http-'));
-  spacesRepo._store._reset();
+  spacesRepo._store._reset(); accessStore._reset();
+  app.locals.verifyIdentity = async () => ({userId:'1',name:'Admin',canInstall:true});
 });
 
 test('GET /api/health → ok', async () => {

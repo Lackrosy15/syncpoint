@@ -97,3 +97,10 @@ test('requiredToolIds с несуществующим инструментом �
     /Инструмент не найден/,
   );
 });
+
+test('manual default prices save for simple and composite services including zero', async () => {
+  const simple = await servicesService.create({name:'Ручная',priceType:'manual',price:25});
+  assert.equal(simple.price,25); assert.equal(simple.priceType,'manual');
+  const composite = await servicesService.create({name:'Комплекс',isComposite:true,compositeSum:'manual',childServiceIds:[simple.id],price:0});
+  assert.equal(composite.price,0);
+});

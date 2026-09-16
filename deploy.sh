@@ -41,6 +41,7 @@ print(json.dumps({
   'PORT': '3000',
   'VIBE_API_KEY': os.environ['VIBE_API_KEY'],
   'VIBE_BASE_URL': os.environ.get('VIBE_BASE_URL', 'https://vibecode.bitrix24.tech/v1'),
+  'B24_DOMAIN': os.environ['B24_DOMAIN'],
   'DATA_DIR': '/opt/data/syncpoint',
 }))
 ")

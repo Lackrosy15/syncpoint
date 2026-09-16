@@ -1,3 +1,4 @@
+import { canEdit } from './access.js';
 export function el(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -65,7 +66,7 @@ export async function crudView(mount, config, api) {
       el('button', { class: 'btn', onclick: () => openForm() }, config.addLabel || 'Добавить'),
       ...(config.extraButtons ? config.extraButtons(refresh) : []),
     ]);
-    mount.append(toolbar);
+    if (canEdit(config.entity)) mount.append(toolbar);
 
     let items = [];
     try { items = await api.list(config.entity); }
@@ -75,10 +76,10 @@ export async function crudView(mount, config, api) {
     for (const item of items) {
       mount.append(el('div', { class: 'row' }, [
         config.render(item),
-        el('div', {}, [
+        canEdit(config.entity) ? el('div', {}, [
           el('button', { class: 'btn link', onclick: () => openForm(item) }, 'Изменить'),
           el('button', { class: 'btn link', onclick: () => del(item) }, 'Удалить'),
-        ]),
+        ]) : null,
       ]));
     }
   }

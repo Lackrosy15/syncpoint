@@ -1,3 +1,5 @@
+import { fetchB24Users } from '../b24/users.js';
+import { employeesService } from './employeesService.js';
 import { serviceAmounts } from './payrollRules.js';
 import { bookingsRepo } from '../repositories/bookingsRepo.js';
 import { workPointsRepo } from '../repositories/workPointsRepo.js';
@@ -7,7 +9,7 @@ import { servicesRepo } from '../repositories/servicesRepo.js';
 import { toolsRepo } from '../repositories/toolsRepo.js';
 import { toolInstancesRepo } from '../repositories/toolInstancesRepo.js';
 import { ValidationError, NotFoundError, ConflictError } from '../lib/errors.js';
-import { defaultPrice } from '../public/js/servicePrice.js';
+import { defaultPrice, isManualPrice } from '../public/js/servicePrice.js';
 
 const inactive = (b) => ['cancelled', 'no_show'].includes(b.status);
 const cleanBooking = (b) => ({ ...b, status: b.status || 'waiting', warnings: [] });
@@ -35,8 +37,19 @@ async function validate(body, preview = false) {
     if (!byId.has(id)) throw new ValidationError('Услуга не найдена');
     return byId.get(id);
   });
-  const employeeIds = [...new Set(Array.isArray(body.employeeIds) ? body.employeeIds : [])];
+  let employeeIds = [...new Set(Array.isArray(body.employeeIds) ? body.employeeIds : [])];
   if (!preview) {
+    if (employeeIds.some((id) => typeof id === 'string' && id.startsWith('b24:'))) {
+      const users = await fetchB24Users();
+      const selected = employeeIds.filter((id) => id.startsWith('b24:')).map((id) => {
+        const user = users.find((u) => String(u.id) === id.slice(4));
+        if (!user) throw new ValidationError('Сотрудник Битрикс24 не найден');
+        return user;
+      });
+      await employeesService.importFromB24(selected);
+      const staff = await employeesRepo.list();
+      employeeIds = [...new Set(employeeIds.map((id) => id.startsWith('b24:') ? staff.find((e) => String(e.b24UserId) === id.slice(4))?.id : id))];
+    }
     if (!employeeIds.length) throw new ValidationError('Выберите исполнителя');
     for (const id of employeeIds) if (!(await employeesRepo.get(id))) throw new ValidationError('Сотрудник не найден');
   }
@@ -50,12 +63,12 @@ async function validate(body, preview = false) {
   const servicePrices = {};
   for (const [id, value] of Object.entries(body.servicePrices || {})) {
     const s = expanded.get(id);
-    if (!s?.isComposite || s.compositeSum !== 'manual') throw new ValidationError('Цену можно менять только для услуги «Указать при записи»');
+    if (!isManualPrice(s)) throw new ValidationError('Цену можно менять только для услуги «Указать при записи»');
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) throw new ValidationError('Некорректная цена услуги');
     servicePrices[id] = value;
   }
   const priced = new Map(byId);
-  for (const [id, price] of Object.entries(servicePrices)) priced.set(id, { ...byId.get(id), compositeSum: 'fixed', price });
+  for (const [id, price] of Object.entries(servicePrices)) priced.set(id, { ...byId.get(id), compositeSum: 'fixed', priceType: 'fixed', price });
   let priceTotal = services.reduce((sum, s) => sum + defaultPrice(priced.get(s.id), priced), 0);
   // Preserve old explicitly overridden totals only on existing bookings.
   let priceOverride = null;

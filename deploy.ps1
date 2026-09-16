@@ -22,11 +22,11 @@ try {
             }
         }
     }
-    foreach ($key in @('SERVER_ID', 'VIBE_API_KEY', 'VIBE_BASE_URL')) {
+    foreach ($key in @('SERVER_ID', 'VIBE_API_KEY', 'VIBE_BASE_URL', 'B24_DOMAIN')) {
         $value = [Environment]::GetEnvironmentVariable($key)
         if (-not [string]::IsNullOrWhiteSpace($value)) { $settings[$key] = $value }
     }
-    foreach ($key in @('SERVER_ID', 'VIBE_API_KEY')) {
+    foreach ($key in @('SERVER_ID', 'VIBE_API_KEY', 'B24_DOMAIN')) {
         if ([string]::IsNullOrWhiteSpace($settings[$key])) { throw "Set $key in .env or the environment." }
     }
     $tar = (Get-Command tar.exe -ErrorAction Stop).Source
@@ -59,7 +59,7 @@ try {
         $envJson = @{
             NODE_ENV = 'production'; PORT = '3000'
             VIBE_API_KEY = $settings['VIBE_API_KEY']; VIBE_BASE_URL = $baseUrl
-            DATA_DIR = '/opt/data/syncpoint'
+            DATA_DIR = '/opt/data/syncpoint'; B24_DOMAIN = $settings['B24_DOMAIN']
         } | ConvertTo-Json -Compress
         $fields = @{
             runtime = 'node20'; install = 'cd /opt/app && npm ci --omit=dev'

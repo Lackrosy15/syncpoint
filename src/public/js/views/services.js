@@ -17,15 +17,21 @@ async function render(mount, api) {
   catch (e) { mount.append(el('div', { class: 'banner' }, e.message)); }
 
   if (!services.length) mount.append(el('div', { class: 'muted' }, 'Пока пусто.'));
-  for (const s of services) {
-    mount.append(el('div', { class: 'row' }, [
+  for (const category of [...categories, { id: null, name: 'Без категории' }]) {
+    const items = services.filter((s) => (categories.some((c) => c.id === s.categoryId) ? s.categoryId : null) === category.id);
+    if (!items.length) continue;
+    const section = el('section', { class: 'service-category' }, el('h2', {}, category.name));
+    mount.append(section);
+    for (const s of items) {
+    section.append(el('div', { class: 'row' }, [
       el('div', {}, [el('b', {}, s.name), el('div', { class: 'meta' }, priceText(s, services)),
-        el('div', { class: 'meta' }, categories.find((c) => c.id === s.categoryId)?.name || 'Без категории')]),
+        s.isComposite ? el('div', { class: 'service-composition' }, [el('strong', {}, 'В составе: '), (s.childServiceIds || []).map((id) => services.find((v) => v.id === id)?.name || 'Недоступная услуга').join(', ')]) : null]),
       el('div', {}, [
         el('button', { class: 'btn link', onclick: () => openForm(mount, api, s) }, 'Изменить'),
         el('button', { class: 'btn link', onclick: () => del(s, mount, api) }, 'Удалить'),
       ]),
     ]));
+    }
   }
 }
 
@@ -34,6 +40,7 @@ function priceText(s, services) {
     const label = { auto: 'Сумма под-услуг', fixed: 'Своя цена', manual: 'Указать при записи' }[s.compositeSum];
     return `Составная · ${label} · ${defaultPrice(s, new Map(services.map((s) => [s.id, s])))} ₽`;
   }
+  if (s.priceType === 'manual') return `Указать при записи · по умолчанию ${s.price ?? 0} ₽`;
   if (s.priceType === 'fixed') return `${s.price} ₽`;
   return `${s.priceMin}–${s.priceMax} ₽`;
 }
@@ -57,6 +64,7 @@ async function openForm(mount, api, item) {
   const priceType = el('select', {});
   priceType.append(el('option', { value: 'fixed' }, 'Фиксированная'));
   priceType.append(el('option', { value: 'range' }, 'Диапазон'));
+  priceType.append(el('option', { value: 'manual' }, 'Указать при записи'));
   priceType.value = item?.priceType || 'fixed';
   const price = el('input', { type: 'number', min: '0', value: item?.price ?? '' });
   const priceMin = el('input', { type: 'number', min: '0', value: item?.priceMin ?? '' });
@@ -100,11 +108,13 @@ async function openForm(mount, api, item) {
   ]);
 
   const syncVisibility = () => {
+    compositePrice.parentElement.querySelector('label').textContent = compositeSum.value === 'manual' ? 'Цена по умолчанию, ₽ (пусто — сумма под-услуг)' : 'Своя цена, ₽';
+    price.parentElement.querySelector('label').textContent = priceType.value === 'manual' ? 'Цена по умолчанию, ₽' : 'Цена, ₽';
     const composite = kind.value === 'composite';
     compositeBox.style.display = composite ? 'block' : 'none';
-    compositePrice.parentElement.style.display = compositeSum.value === 'fixed' ? 'block' : 'none';
+    compositePrice.parentElement.style.display = ['fixed', 'manual'].includes(compositeSum.value) ? 'block' : 'none';
     simpleBox.style.display = composite ? 'none' : 'block';
-    price.parentElement.style.display = priceType.value === 'fixed' ? 'block' : 'none';
+    price.parentElement.style.display = ['fixed', 'manual'].includes(priceType.value) ? 'block' : 'none';
     priceMin.parentElement.style.display = priceType.value === 'range' ? 'block' : 'none';
     priceMax.parentElement.style.display = priceType.value === 'range' ? 'block' : 'none';
   };
@@ -144,13 +154,13 @@ async function openForm(mount, api, item) {
           name: name.input.value, isComposite: true,
           compositeSum: compositeSum.value,
           childServiceIds: childChecks.filter((c) => c.cb.checked).map((c) => c.id),
-          price: compositeSum.value === 'fixed' ? Number(compositePrice.value) : null,
+          price: ['fixed', 'manual'].includes(compositeSum.value) && compositePrice.value !== '' ? Number(compositePrice.value) : null,
           requiredToolIds, requiredToolCounts,
         };
       } else {
         data = {
           name: name.input.value, isComposite: false, priceType: priceType.value,
-          price: priceType.value === 'fixed' ? Number(price.value) : null,
+          price: ['fixed', 'manual'].includes(priceType.value) ? Number(price.value) : null,
           priceMin: priceType.value === 'range' ? Number(priceMin.value) : null,
           priceMax: priceType.value === 'range' ? Number(priceMax.value) : null,
           requiredToolIds, requiredToolCounts,

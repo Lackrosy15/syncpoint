@@ -1,3 +1,4 @@
+import { canEdit } from '../access.js';
 import { el, textField, openModal } from '../ui.js';
 
 export function toolsView(mount, api) {
@@ -6,7 +7,7 @@ export function toolsView(mount, api) {
 
 async function render(mount, api) {
   mount.innerHTML = '';
-  mount.append(el('div', { class: 'toolbar' }, [
+  if (canEdit('tools')) mount.append(el('div', { class: 'toolbar' }, [
     el('button', { class: 'btn', onclick: () => openCreate(mount, api) }, 'Добавить инструмент'),
   ]));
 
@@ -36,8 +37,8 @@ async function render(mount, api) {
       const named = g.items.filter((i) => i.label);
       return el('div', { class: 'meta', style: 'display:flex;align-items:center;gap:8px;padding:2px 0' }, [
         el('span', { style: 'flex:1' }, `${spaceName(g.spaceId)} — ${g.items.length}`),
-        el('button', { class: 'btn link', onclick: () => editGroup(tool, g, spaces, mount, api) }, '✎ кол-во'),
-        ...g.items.filter((i) => i.label || !g.spaceId).map((i) => el('button', {
+        canEdit('tools') ? el('button', { class: 'btn link', onclick: () => editGroup(tool, g, spaces, mount, api) }, '✎ кол-во') : null,
+        ...g.items.filter(() => canEdit('tools')).filter((i) => i.label || !g.spaceId).map((i) => el('button', {
           class: 'btn link', title: `Переименовать «${i.label}»`,
           onclick: () => editInstance(i, spaces, mount, api),
         }, `${i.label || 'Назначить пространство'} ✎`)),
@@ -50,10 +51,10 @@ async function render(mount, api) {
         el('div', { class: 'meta' }, `Экземпляров: ${own.length}`),
         ...groupRows,
       ]),
-      el('div', {}, [
+      canEdit('tools') ? el('div', {}, [
         el('button', { class: 'btn link', onclick: () => openEdit(tool, own, spaces, mount, api) }, 'Изменить'),
         el('button', { class: 'btn link', onclick: () => del(tool, mount, api) }, 'Удалить'),
-      ]),
+      ]) : null,
     ]));
   }
 }

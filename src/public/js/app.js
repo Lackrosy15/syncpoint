@@ -1,3 +1,5 @@
+import { access, setAccess } from './access.js';
+import { rolesView } from './views/roles.js';
 import { payrollView } from './views/payroll.js';
 import { el } from './ui.js';
 import { api } from './api.js';
@@ -14,6 +16,7 @@ const TABS = [
   { id: 'work-points', label: 'Рабочие точки', view: workPointsView },
   { id: 'tools', label: 'Инструменты', view: toolsView },
   { id: 'services', label: 'Услуги', view: servicesView },
+  { id: 'roles', label: 'Права доступа', view: rolesView },
   { id: 'payroll', label: 'Зарплата', view: payrollView },
   { id: 'employees', label: 'Сотрудники', view: employeesView },
 ];
@@ -31,10 +34,18 @@ function activate(tab) {
   dispose = tab.view(viewMount, api);
 }
 
-for (const tab of TABS) {
+async function start() {
+try {
+  if (window.BX24 && window.self !== window.top) await new Promise((resolve) => window.BX24.init(resolve));
+  setAccess(await api.get('auth/me'));
+for (const tab of TABS.filter((t) => access.isAdmin || !['services','roles'].includes(t.id))) {
   tabsNav.append(el('button', { 'data-id': tab.id, onclick: () => activate(tab) }, tab.label));
 }
 activate(TABS[0]);
 window.addEventListener('hashchange', () => {
   if (location.hash.startsWith('#bookings')) activate(TABS[0]);
 });
+
+} catch(e) { viewMount.textContent = e.message; }
+}
+start();

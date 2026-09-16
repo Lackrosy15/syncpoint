@@ -71,19 +71,19 @@ async function buildService(body, selfId = null) {
     return {
       name, isComposite: true, compositeSum, childServiceIds,
       priceType: null,
-      price: compositeSum === 'fixed' ? num(body.price, 'фикс') : null,
+      price: compositeSum === 'fixed' ? num(body.price, 'фикс') : (compositeSum === 'manual' && body.price != null && body.price !== '' ? num(body.price, 'по умолчанию') : null),
       priceMin: null, priceMax: null,
       requiredToolIds, requiredToolCounts,
     };
   }
 
   const priceType = body.priceType;
-  if (!['fixed', 'range'].includes(priceType)) {
+  if (!['fixed', 'range', 'manual'].includes(priceType)) {
     throw new ValidationError('Укажите тип цены (фикс или диапазон)');
   }
-  if (priceType === 'fixed') {
+  if (priceType === 'fixed' || priceType === 'manual') {
     return {
-      name, isComposite: false, priceType: 'fixed',
+      name, isComposite: false, priceType,
       price: num(body.price, 'фикс'), priceMin: null, priceMax: null,
       compositeSum: null, childServiceIds: [], requiredToolIds, requiredToolCounts,
     };

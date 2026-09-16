@@ -1,3 +1,5 @@
+import { verifyBitrix, resolveAccess, allowed, accessStore, updateAccess } from './services/accessService.js';
+import { employeesRepo } from './repositories/employeesRepo.js';
 import 'dotenv/config';
 import express from 'express';
 import { fileURLToPath } from 'url';
@@ -23,6 +25,29 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(join(__dirname, 'public')));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, data: { status: 'up' } }));
+
+app.use('/api', async (req,res,next)=>{
+  try {
+    res.set('Cache-Control','no-store');
+    req.access = await resolveAccess(await (app.locals.verifyIdentity || verifyBitrix)(req));
+    if (!allowed(req.access, req.method, req.path)) return res.status(403).json({ok:false,error:{message:'Недостаточно прав'}});
+    if (!req.access.isAdmin) {
+      const employeeResponse = /^\/employees(?:\/|$)/.test(req.path);
+      const json = res.json.bind(res);
+      res.json = (payload) => {
+        if (payload.ok && employeeResponse) {
+          const clean = (e) => { const { salary, ...rest } = e; return rest; };
+          payload = {...payload,data:Array.isArray(payload.data)?payload.data.map(clean):clean(payload.data)};
+        }
+        return json(payload);
+      };
+    }
+    next();
+  } catch(e) { next(e); }
+});
+app.get('/api/auth/me',(req,res)=>res.json({ok:true,data:req.access}));
+app.get('/api/access',async(req,res,next)=>{try {res.json({ok:true,data:await accessStore.get('roles')});}catch(e){next(e);}});
+app.put('/api/access/:userId',async(req,res,next)=>{try {res.json({ok:true,data:await updateAccess(req.params.userId,req.body)});}catch(e){next(e);}});
 
 app.use('/api/spaces', spacesRouter);
 app.use('/api/work-points', workPointsRouter);
